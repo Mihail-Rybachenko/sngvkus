@@ -1,0 +1,50 @@
+{
+  "name": "sngvkus-frontend",
+  "version": "1.0.0",
+  "description": "Frontend для платформы SngVkus - создание персонализированных продуктов питания",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "@reduxjs/toolkit": "^2.0.1",
+    "react-redux": "^9.0.4",
+    "@mui/material": "^5.14.20",
+    "@mui/icons-material": "^5.14.19",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "d3": "^7.8.5",
+    "fabric": "^5.3.0",
+    "react-hook-form": "^7.48.2",
+    "yup": "^1.3.3",
+    "@hookform/resolvers": "^3.3.2",
+    "jspdf": "^2.5.1",
+    "jspdf-autotable": "^3.8.2",
+    "pptxgenjs": "^3.12.0",
+    "papaparse": "^5.4.1",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@types/d3": "^7.4.3",
+    "@types/papaparse": "^5.3.14",
+    "@types/node": "^20.10.5",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.55.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.8"
+  }
+}
+
