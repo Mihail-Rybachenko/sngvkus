@@ -12,10 +12,17 @@ export interface User {
 // Микроэлементы и анализ
 export interface MicroElement {
   name: string;
+  /** Ключ элемента (copper, zinc, …) для связи с конструктором рецептур */
+  elementKey?: string | null;
   value: number;
   norm: number;
+  refMin?: number | null;
+  refMax?: number | null;
   unit: string;
   deficiency: boolean;
+  surplus?: boolean;
+  balanceStatus?: 'normal' | 'deficit' | 'surplus';
+  consequenceText?: string | null;
 }
 
 export interface ChartData {
@@ -29,8 +36,12 @@ export interface AnalysisData {
   id: string;
   fileName: string;
   uploadedAt: string;
+  subjectAge?: number | null;
+  subjectSex?: 'male' | 'female' | null;
+  subjectProfile?: string | null;
   elements: MicroElement[];
   deficiencies: string[];
+  surpluses?: string[];
   charts: ChartData[];
 }
 
@@ -90,7 +101,15 @@ export interface Notification {
 }
 
 // Проекты
-export type ProjectStatus = 'draft' | 'analysis' | 'recipe' | 'packaging' | 'presentation' | 'expert_review' | 'completed';
+export type ProjectStatus =
+  | 'draft'
+  | 'analysis'
+  | 'recipe'
+  | 'recipe_expert_review'
+  | 'packaging'
+  | 'presentation'
+  | 'expert_review'
+  | 'completed';
 
 export interface Project {
   id: string;

@@ -9,7 +9,6 @@ import {
 import { CloudUpload as CloudUploadIcon } from '@mui/icons-material';
 import { COLORS } from '@/utils/constants';
 import Papa from 'papaparse';
-import type { MicroElement } from '@/types';
 
 interface CSVUploaderProps {
   onFileSelect: (file: File) => void;
@@ -23,8 +22,19 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({
   const [dragActive, setDragActive] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const validateCSV = (file: File): Promise<boolean> => {
+  const validateFile = (file: File): Promise<boolean> => {
     return new Promise((resolve, reject) => {
+      const lowerName = file.name.toLowerCase();
+      if (
+        lowerName.endsWith('.xlsx') ||
+        lowerName.endsWith('.xls') ||
+        lowerName.endsWith('.xlml') ||
+        lowerName.endsWith('.xml')
+      ) {
+        // Excel валидируем на сервере, здесь пропускаем.
+        resolve(true);
+        return;
+      }
       Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
@@ -35,23 +45,7 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({
             return;
           }
 
-          // Проверяем наличие необходимых колонок
-          const requiredColumns = ['name', 'value', 'norm', 'unit'];
-          const firstRow = data[0];
-          const hasAllColumns = requiredColumns.every((col) =>
-            Object.keys(firstRow).some(
-              (key) => key.toLowerCase() === col.toLowerCase()
-            )
-          );
-
-          if (!hasAllColumns) {
-            reject(
-              new Error(
-                `Отсутствуют необходимые колонки. Требуются: ${requiredColumns.join(', ')}`
-              )
-            );
-            return;
-          }
+          // Мягкая валидация на клиенте: проверяем, что файл не пустой.
 
           resolve(true);
         },
@@ -66,13 +60,8 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({
     async (file: File) => {
       setValidationError(null);
 
-      if (!file.name.endsWith('.csv')) {
-        setValidationError('Файл должен иметь расширение .csv');
-        return;
-      }
-
       try {
-        await validateCSV(file);
+        await validateFile(file);
         onFileSelect(file);
       } catch (error: any) {
         setValidationError(error.message || 'Ошибка валидации файла');
@@ -135,13 +124,13 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({
           sx={{ fontSize: 64, color: COLORS.primary, mb: 2 }}
         />
         <Typography variant="h6" gutterBottom>
-          Перетащите CSV файл сюда
+          Перетащите файл анализа сюда
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           или
         </Typography>
         <input
-          accept=".csv"
+          accept="*/*"
           style={{ display: 'none' }}
           id="csv-upload-input"
           type="file"
@@ -160,7 +149,7 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({
           </Button>
         </label>
         <Typography variant="caption" display="block" sx={{ mt: 2, color: 'text.secondary' }}>
-          Формат CSV: колонки name, value, norm, unit
+          Поддержка: CSV/TSV/TXT и Excel (.xlsx/.xls/.xlml/.xml). Нужны колонки показателей (name, value, unit).
         </Typography>
       </Box>
 

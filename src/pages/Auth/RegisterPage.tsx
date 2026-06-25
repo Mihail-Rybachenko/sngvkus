@@ -9,19 +9,11 @@ import {
   Box,
   Alert,
   CircularProgress,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
 } from '@mui/material';
 import { useRegisterMutation } from '@/store/api';
 import { useAppDispatch } from '@/store/hooks';
 import { setCredentials } from '@/store/slices/authSlice';
-import { COLORS } from '@/utils/constants';
-import type { UserRole } from '@/types';
-
-// Демо-режим: если true, работает локально без API
-const DEMO_MODE = true;
+import { COLORS, DEMO_MODE } from '@/utils/constants';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -34,12 +26,16 @@ export const RegisterPage: React.FC = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'student' as UserRole,
     name: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.password.length < 8) {
+      setError('Пароль должен содержать минимум 8 символов');
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError('Пароли не совпадают');
@@ -57,7 +53,7 @@ export const RegisterPage: React.FC = () => {
         const user = {
           id: 'user-' + Date.now(),
           email: formData.email,
-          role: formData.role,
+          role: 'student' as const,
           name: formData.name || formData.email.split('@')[0],
         };
 
@@ -73,7 +69,6 @@ export const RegisterPage: React.FC = () => {
         const result = await register({
           email: formData.email,
           password: formData.password,
-          role: formData.role,
           name: formData.name || undefined,
         }).unwrap();
         dispatch(setCredentials(result));
@@ -149,18 +144,9 @@ export const RegisterPage: React.FC = () => {
               required
               autoComplete="email"
             />
-            <FormControl fullWidth margin="normal" required>
-              <InputLabel>Роль</InputLabel>
-              <Select
-                value={formData.role}
-                label="Роль"
-                onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-              >
-                <MenuItem value="student">Студент</MenuItem>
-                <MenuItem value="expert">Эксперт-диетолог</MenuItem>
-                <MenuItem value="coordinator">Координатор Неофуд</MenuItem>
-              </Select>
-            </FormControl>
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Все новые аккаунты регистрируются как пользователь.
+            </Alert>
             <TextField
               fullWidth
               label="Пароль"
@@ -169,6 +155,8 @@ export const RegisterPage: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               margin="normal"
               required
+              inputProps={{ minLength: 8 }}
+              helperText="Минимум 8 символов"
               autoComplete="new-password"
             />
             <TextField
@@ -179,11 +167,16 @@ export const RegisterPage: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
               margin="normal"
               required
-              error={formData.password !== formData.confirmPassword && formData.confirmPassword !== ''}
+              error={
+                (formData.password !== formData.confirmPassword && formData.confirmPassword !== '') ||
+                (formData.confirmPassword !== '' && formData.password.length < 8)
+              }
               helperText={
                 formData.password !== formData.confirmPassword && formData.confirmPassword !== ''
                   ? 'Пароли не совпадают'
-                  : ''
+                  : formData.confirmPassword !== '' && formData.password.length < 8
+                    ? 'Пароль должен содержать минимум 8 символов'
+                    : ''
               }
             />
             <Button

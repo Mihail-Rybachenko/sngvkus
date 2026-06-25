@@ -25,7 +25,12 @@ const STEPS: { status: ProjectStatus; label: string; description: string }[] = [
   {
     status: 'recipe',
     label: 'Разработка рецептуры',
-    description: 'Подбор премиксов и расчет пищевой ценности',
+    description: 'Подбор премиксов и расчёт пищевой ценности',
+  },
+  {
+    status: 'recipe_expert_review',
+    label: 'Проверка рецептуры экспертом',
+    description: 'Эксперт-диетолог проверяет рецептуру и разрешает переход к упаковке',
   },
   {
     status: 'packaging',
@@ -39,13 +44,13 @@ const STEPS: { status: ProjectStatus; label: string; description: string }[] = [
   },
   {
     status: 'expert_review',
-    label: 'Экспертиза',
-    description: 'Проверка экспертом-диетологом',
+    label: 'Подтверждение координатором Neofood',
+    description: 'После презентации координатор Neofood подтверждает проект или возвращает на доработку',
   },
   {
     status: 'completed',
-    label: 'Завершен',
-    description: 'Проект утвержден и готов',
+    label: 'Завершён',
+    description: 'Проект утверждён координатором Neofood',
   },
 ];
 
@@ -54,7 +59,6 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
   onStatusChange,
   canEdit = false,
   userRole,
-  projectStudentId,
 }) => {
   const currentStepIndex = STEPS.findIndex((step) => step.status === currentStatus);
 
@@ -62,6 +66,12 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
     if (index < currentStepIndex) return 'completed';
     if (index === currentStepIndex) return 'active';
     return 'pending';
+  };
+
+  const confirmAndChange = (status: ProjectStatus, message?: string) => {
+    if (!onStatusChange) return;
+    if (message && !window.confirm(message)) return;
+    onStatusChange(status);
   };
 
   return (
@@ -90,8 +100,8 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
                       bgcolor: isCompleted
                         ? COLORS.success
                         : isActive
-                        ? COLORS.primary
-                        : '#e0e0e0',
+                          ? COLORS.primary
+                          : '#e0e0e0',
                       color: isCompleted || isActive ? 'white' : '#757575',
                     }}
                   >
@@ -105,41 +115,127 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   {step.description}
                 </Typography>
+                {isActive && step.status === 'recipe_expert_review' && userRole === 'student' && (
+                  <Typography variant="body2" color="warning.main" sx={{ mb: 2 }}>
+                    Рецептура отправлена на проверку. Ожидайте решения эксперта-диетолога — после одобрения откроется этап
+                    упаковки.
+                  </Typography>
+                )}
                 {isActive && canEdit && onStatusChange && index < STEPS.length - 1 && (
                   <Box>
-                    <Button
-                      variant="contained"
-                      size="small"
-                      onClick={() => onStatusChange(STEPS[index + 1].status)}
-                      sx={{ bgcolor: COLORS.primary, mb: 1, mr: 1 }}
-                    >
-                      {userRole === 'coordinator' 
-                        ? 'Отметить этап как выполненный' 
-                        : userRole === 'expert' 
-                        ? 'Одобрить рецептуру'
-                        : 'Перейти к следующему этапу'}
-                    </Button>
-                    {(userRole === 'expert' || userRole === 'coordinator') && step.status === 'expert_review' && (
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        size="small"
-                        onClick={() => onStatusChange('recipe')}
-                        sx={{ mb: 1 }}
-                      >
-                        Отклонить (вернуть на доработку)
-                      </Button>
+                    {step.status === 'expert_review' && userRole === 'coordinator' && (
+                      <>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          color="success"
+                          onClick={() =>
+                            confirmAndChange(
+                              'completed',
+                              'Подтвердить утверждение проекта и перевод в статус «Завершён»?'
+                            )
+                          }
+                          sx={{ mb: 1, mr: 1 }}
+                        >
+                          Утвердить проект
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          size="small"
+                          onClick={() =>
+                            confirmAndChange(
+                              'presentation',
+                              'Вернуть проект на этап «Презентация» для доработки?'
+                            )
+                          }
+                          sx={{ mb: 1 }}
+                        >
+                          Вернуть на доработку
+                        </Button>
+                      </>
                     )}
+
+                    {step.status === 'recipe_expert_review' && userRole === 'expert' && (
+                      <>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          color="success"
+                          onClick={() =>
+                            confirmAndChange(
+                              'packaging',
+                              'Одобрить рецептуру и разрешить переход к этапу «Упаковка»?'
+                            )
+                          }
+                          sx={{ mb: 1, mr: 1 }}
+                        >
+                          Одобрить рецептуру
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          size="small"
+                          onClick={() =>
+                            confirmAndChange('recipe', 'Вернуть проект на этап «Рецептура» для доработки?')
+                          }
+                          sx={{ mb: 1 }}
+                        >
+                          Вернуть на доработку
+                        </Button>
+                      </>
+                    )}
+
+                    {step.status === 'presentation' &&
+                      (userRole === 'student' || userRole === 'coordinator') && (
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => confirmAndChange('expert_review')}
+                          sx={{ bgcolor: COLORS.primary, mb: 1, mr: 1 }}
+                        >
+                          Отправить на подтверждение координатору
+                        </Button>
+                      )}
+
+                    {step.status !== 'expert_review' &&
+                      step.status !== 'presentation' &&
+                      index > 0 &&
+                      userRole !== 'expert' && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => confirmAndChange(STEPS[index - 1].status, 'Вернуться на предыдущий этап?')}
+                          sx={{ mb: 1, mr: 1 }}
+                        >
+                          Предыдущий этап
+                        </Button>
+                      )}
+
+                    {step.status !== 'expert_review' &&
+                      step.status !== 'presentation' && (
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => confirmAndChange(STEPS[index + 1].status)}
+                          sx={{ bgcolor: COLORS.primary, mb: 1, mr: 1 }}
+                        >
+                          {step.status === 'recipe' ? 'Отправить на проверку эксперту' : 'Следующий этап'}
+                        </Button>
+                      )}
+
                     {userRole === 'student' && (
                       <Typography variant="caption" color="text.secondary" display="block">
-                        Статусы меняются автоматически при выполнении этапов
+                        Статусы меняются при выполнении этапов и согласованиях
                       </Typography>
                     )}
                   </Box>
                 )}
-                {isActive && !canEdit && userRole === 'student' && (
+                {isActive &&
+                  !canEdit &&
+                  userRole === 'student' && (
                   <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                    Выполните этап работы - статус обновится автоматически
+                    Выполните этап работы — статус обновится автоматически или после проверки эксперта
                   </Typography>
                 )}
               </StepContent>
@@ -150,4 +246,3 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
     </Paper>
   );
 };
-

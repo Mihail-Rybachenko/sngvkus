@@ -35,7 +35,8 @@ export const MicroElementChart: React.FC<MicroElementChartProps> = ({
       .range([0, width])
       .padding(0.2);
 
-    const maxValue = d3.max(elements, (d) => Math.max(d.value, d.norm)) || 0;
+    const maxValue =
+      d3.max(elements, (d) => Math.max(d.value, d.refMax ?? d.norm, d.refMin ?? d.norm, d.norm)) || 0;
     const yScale = d3.scaleLinear().domain([0, maxValue * 1.2]).range([height, 0]);
 
     // Оси
@@ -57,15 +58,17 @@ export const MicroElementChart: React.FC<MicroElementChartProps> = ({
       .attr('text-anchor', 'middle')
       .text('Значение');
 
-    // Подсветка дефицитных элементов
+    // Подсветка дефицита и перенасыщения
     elements.forEach((element, i) => {
-      if (element.deficiency) {
+      const isDeficit = element.balanceStatus === 'deficit' || element.deficiency;
+      const isSurplus = element.balanceStatus === 'surplus' || element.surplus;
+      if (isDeficit || isSurplus) {
         g.append('rect')
           .attr('x', xScale(element.name))
           .attr('y', 0)
           .attr('width', xScale.bandwidth())
           .attr('height', height)
-          .attr('fill', '#ffebee')
+          .attr('fill', isSurplus ? '#e3f2fd' : '#ffebee')
           .attr('opacity', 0.3);
       }
     });
@@ -96,15 +99,29 @@ export const MicroElementChart: React.FC<MicroElementChartProps> = ({
       .attr('fill', COLORS.primary)
       .attr('rx', 2);
 
-    // Линия нормы
+    // Пунктирные линии границ для дефицита/перенасыщения
     elements.forEach((element) => {
-      if (element.deficiency) {
+      const isDeficit = element.balanceStatus === 'deficit' || element.deficiency;
+      const isSurplus = element.balanceStatus === 'surplus' || element.surplus;
+      if (isDeficit) {
+        const yRef = yScale(element.refMin ?? element.norm);
         g.append('line')
           .attr('x1', xScale(element.name) || 0)
           .attr('x2', (xScale(element.name) || 0) + xScale.bandwidth())
-          .attr('y1', yScale(element.norm))
-          .attr('y2', yScale(element.norm))
+          .attr('y1', yRef)
+          .attr('y2', yRef)
           .attr('stroke', COLORS.error)
+          .attr('stroke-width', 2)
+          .attr('stroke-dasharray', '5,5');
+      }
+      if (isSurplus) {
+        const yRef = yScale(element.refMax ?? element.norm);
+        g.append('line')
+          .attr('x1', xScale(element.name) || 0)
+          .attr('x2', (xScale(element.name) || 0) + xScale.bandwidth())
+          .attr('y1', yRef)
+          .attr('y2', yRef)
+          .attr('stroke', '#1565C0')
           .attr('stroke-width', 2)
           .attr('stroke-dasharray', '5,5');
       }
@@ -119,6 +136,7 @@ export const MicroElementChart: React.FC<MicroElementChartProps> = ({
       { label: 'Значение', color: COLORS.secondary },
       { label: 'Норма', color: COLORS.primary },
       { label: 'Дефицит', color: COLORS.error },
+      { label: 'Перенасыщение', color: '#1565C0' },
     ];
 
     legendData.forEach((item, i) => {

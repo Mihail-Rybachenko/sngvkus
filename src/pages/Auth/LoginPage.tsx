@@ -13,11 +13,8 @@ import {
 import { useLoginMutation } from '@/store/api';
 import { useAppDispatch } from '@/store/hooks';
 import { setCredentials } from '@/store/slices/authSlice';
-import { COLORS } from '@/utils/constants';
+import { COLORS, DEMO_MODE } from '@/utils/constants';
 import { demoUser } from '@/utils/demoData';
-
-// Демо-режим: если true, работает локально без API
-const DEMO_MODE = true;
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();

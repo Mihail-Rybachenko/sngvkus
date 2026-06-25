@@ -13,6 +13,8 @@ import { RecipeBuilderPage } from './pages/RecipeBuilder/RecipeBuilderPage';
 import { PackagingDesignPage } from './pages/PackagingDesign/PackagingDesignPage';
 import { PresentationPage } from './pages/Presentation/PresentationPage';
 import { ProjectViewPage } from './pages/ProjectView/ProjectViewPage';
+import { ProfilePage } from './pages/Profile/ProfilePage';
+import { NotFoundPage } from './pages/NotFound/NotFoundPage';
 import { COLORS } from './utils/constants';
 
 const theme = createTheme({
@@ -90,8 +92,11 @@ function App() {
               <Route path="recipe" element={<RecipeBuilderPage />} />
               <Route path="packaging" element={<PackagingDesignPage />} />
               <Route path="presentation" element={<PresentationPage />} />
+              <Route path="profile" element={<ProfilePage />} />
               <Route path="project/:projectId" element={<ProjectViewPage />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Route>
+            <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </BrowserRouter>
       </ThemeProvider>

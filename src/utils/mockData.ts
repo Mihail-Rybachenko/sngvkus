@@ -1,4 +1,4 @@
-import type { Premix, ProductType, Recipe, NutritionalInfo } from '@/types';
+import type { Premix, ProductType, NutritionalInfo } from '@/types';
 
 // Базовые премиксы для обогащения
 export const AVAILABLE_PREMIXES: Premix[] = [
@@ -42,12 +42,10 @@ export const AVAILABLE_PREMIXES: Premix[] = [
     id: 'premix-complex',
     name: 'Комплексный премикс',
     composition: {
-      железо: 8.0,
-      цинк: 6.0,
-      кальций: 600.0,
-      магний: 200.0,
-      витамин_C: 15.0,
-      витамин_D: 5.0,
+      медь: 1.1,
+      натрий: 55.0,
+      калий: 500.0,
+      селен: 0.08,
     },
     price: 350,
   },
@@ -85,8 +83,6 @@ export const BASE_NUTRITIONAL_VALUES: Record<ProductType, Omit<NutritionalInfo, 
 export const TRTS021_NORMS = {
   железо: { min: 14.0, max: 18.0, unit: 'мг/кг' },
   цинк: { min: 9.0, max: 12.0, unit: 'мг/кг' },
-  кальций: { min: 800.0, max: 1200.0, unit: 'мг/кг' },
-  магний: { min: 350.0, max: 450.0, unit: 'мг/кг' },
   медь: { min: 1.0, max: 1.5, unit: 'мг/кг' },
   селен: { min: 0.06, max: 0.1, unit: 'мг/кг' },
 };
@@ -114,11 +110,14 @@ export const calculateNutritionalValue = (
 
 // Проверка соответствия ТР ТС 021/2011
 export const checkTRTS021Compliance = (
-  nutritionalValue: NutritionalInfo
+  nutritionalValue: NutritionalInfo,
+  scopeElements?: string[]
 ): { trts021: boolean; issues: string[] } => {
   const issues: string[] = [];
+  const scopeSet = scopeElements?.length ? new Set(scopeElements) : null;
 
   Object.entries(nutritionalValue.microelements).forEach(([element, value]) => {
+    if (scopeSet && !scopeSet.has(element)) return;
     const norm = TRTS021_NORMS[element as keyof typeof TRTS021_NORMS];
     if (norm) {
       if (value < norm.min) {

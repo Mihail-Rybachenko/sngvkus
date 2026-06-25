@@ -10,26 +10,32 @@ import {
   CardActions,
   Button,
   Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Science as ScienceIcon,
   Restaurant as RestaurantIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
-import { useGetProjectsQuery, useCreateProjectMutation } from '@/store/api';
+import { useGetProjectsQuery, useCreateProjectMutation, useDeleteProjectMutation } from '@/store/api';
 import { useAppSelector } from '@/store/hooks';
-import { COLORS } from '@/utils/constants';
-import { demoProjects } from '@/utils/demoData';
+import { COLORS, DEMO_MODE } from '@/utils/constants';
+import { demoUser } from '@/utils/demoData';
+import { getMergedDemoProjects } from '@/utils/demoProjectsMerge';
 import type { ProjectStatus, Project } from '@/types';
-
-// Демо-режим: если true, используем демо-данные
-const DEMO_MODE = true;
 
 const statusLabels: Record<ProjectStatus, string> = {
   draft: 'Черновик',
   analysis: 'Анализ',
   recipe: 'Рецептура',
+  recipe_expert_review: 'Проверка рецептуры',
   packaging: 'Упаковка',
+  presentation: 'Презентация',
+  expert_review: 'У координатора',
   completed: 'Завершен',
 };
 
@@ -37,6 +43,7 @@ const statusColors: Record<ProjectStatus, string> = {
   draft: '#757575',
   analysis: COLORS.secondary,
   recipe: COLORS.accent,
+  recipe_expert_review: '#FF9800',
   packaging: COLORS.primary,
   presentation: '#9C27B0',
   expert_review: '#FF5722',
@@ -48,68 +55,41 @@ export const DashboardPage: React.FC = () => {
   const { user } = useAppSelector((state) => state.auth);
   const { data: apiProjects = [], isLoading: isApiLoading } = useGetProjectsQuery(undefined, {
     skip: DEMO_MODE,
+    refetchOnMountOrArgChange: true,
   });
   const [createProject, { isLoading: isCreating }] = useCreateProjectMutation();
+  const [deleteProject] = useDeleteProjectMutation();
+  const [statusFilter, setStatusFilter] = useState<'all' | ProjectStatus>('all');
   // Загружаем проекты из localStorage при инициализации
-  const [localProjects, setLocalProjects] = useState<Project[]>(() => {
-    if (DEMO_MODE) {
-      const saved = localStorage.getItem('projects');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          return parsed.length > 0 ? parsed : demoProjects;
-        } catch {
-          return demoProjects;
-        }
-      }
-      return demoProjects;
-    }
-    return [];
-  });
+  const [localProjects, setLocalProjects] = useState<Project[]>(() => (DEMO_MODE ? getMergedDemoProjects() : []));
 
-  // Фильтрация проектов по ролям:
-  // - Студент: видит только свои проекты
-  // - Координатор: видит ВСЕ проекты
-  // - Эксперт: видит проекты на этапе экспертизы
   const getFilteredProjects = () => {
-    if (!DEMO_MODE) return apiProjects;
-    
-    if (!user) return localProjects;
-    
-    if (user.role === 'coordinator') {
-      // Координатор видит все проекты
-      return localProjects;
+    if (!user) return [];
+
+    if (!DEMO_MODE) {
+      if (user.role === 'student') {
+        return (apiProjects || []).filter((p) => String(p.student?.id) === String(user.id));
+      }
+      return apiProjects;
     }
-    
-    if (user.role === 'expert') {
-      // Эксперт видит только проекты на экспертизе
-      return localProjects.filter((p) => p.status === 'expert_review');
-    }
-    
-    // Студент видит только свои проекты
-    return localProjects.filter((p) => p.student.id === user.id);
+
+    const merged = getMergedDemoProjects();
+    if (user.role === 'coordinator' || user.role === 'expert') return merged;
+    return merged.filter((p) => p.student.id === user.id);
   };
 
-  // Обновляем проекты при монтировании
+  const applyStatusFilter = (items: Project[]) => {
+    if (statusFilter === 'all') return items;
+    return items.filter((p) => p.status === statusFilter);
+  };
+
   useEffect(() => {
     if (DEMO_MODE) {
-      const saved = localStorage.getItem('projects');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          const allProjects = [...parsed, ...demoProjects];
-          const uniqueProjects = allProjects.filter((project, index, self) =>
-            index === self.findIndex((p) => p.id === project.id)
-          );
-          setLocalProjects(uniqueProjects.length > 0 ? uniqueProjects : demoProjects);
-        } catch {
-          // ignore
-        }
-      }
+      setLocalProjects(getMergedDemoProjects());
     }
   }, []);
 
-  const projects = getFilteredProjects();
+  const projects = applyStatusFilter(getFilteredProjects());
   const isLoading = DEMO_MODE ? false : isApiLoading;
 
   const handleCreateProject = async () => {
@@ -119,7 +99,7 @@ export const DashboardPage: React.FC = () => {
         id: `project-${Date.now()}`,
         name: `Проект ${new Date().toLocaleDateString()}`,
         status: 'draft',
-        student: user || demoProjects[0].student,
+        student: user && user.role === 'student' ? user : demoUser,
         comments: [],
         notifications: [],
         createdAt: new Date().toISOString(),
@@ -148,16 +128,35 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  const handleDeleteProject = async (projectId: string, projectName: string) => {
+    const ok = window.confirm(`Удалить проект "${projectName}"? Это действие нельзя отменить.`);
+    if (!ok) return;
+
+    if (DEMO_MODE) {
+      const savedProjects = JSON.parse(localStorage.getItem('projects') || '[]');
+      const filtered = savedProjects.filter((p: Project) => p.id !== projectId);
+      localStorage.setItem('projects', JSON.stringify(filtered));
+      setLocalProjects((prev) => prev.filter((p) => p.id !== projectId));
+      return;
+    }
+
+    try {
+      await deleteProject(projectId).unwrap();
+    } catch (error) {
+      console.error('Failed to delete project:', error);
+    }
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Box>
           <Typography variant="h4" component="h1">
-            {user?.role === 'coordinator' 
-              ? 'Все проекты' 
-              : user?.role === 'expert' 
-              ? 'Проекты на экспертизе'
-              : 'Мои проекты'}
+            {user?.role === 'coordinator'
+              ? 'Все проекты'
+              : user?.role === 'expert'
+                ? 'Все проекты (проверка рецептур)'
+                : 'Мои проекты'}
           </Typography>
           {DEMO_MODE && (
             <Chip
@@ -168,17 +167,37 @@ export const DashboardPage: React.FC = () => {
             />
           )}
         </Box>
-        {user?.role !== 'expert' && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleCreateProject}
-            disabled={isCreating}
-            sx={{ bgcolor: COLORS.primary }}
-          >
-            Создать проект
-          </Button>
-        )}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <FormControl size="small" sx={{ minWidth: 190 }}>
+            <InputLabel>Фильтр по этапу</InputLabel>
+            <Select
+              label="Фильтр по этапу"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | ProjectStatus)}
+            >
+              <MenuItem value="all">Все этапы</MenuItem>
+              <MenuItem value="draft">Черновик</MenuItem>
+              <MenuItem value="analysis">Анализ</MenuItem>
+              <MenuItem value="recipe">Рецептура</MenuItem>
+              <MenuItem value="recipe_expert_review">Проверка рецептуры</MenuItem>
+              <MenuItem value="packaging">Упаковка</MenuItem>
+              <MenuItem value="presentation">Презентация</MenuItem>
+              <MenuItem value="expert_review">Подтверждение</MenuItem>
+              <MenuItem value="completed">Завершен</MenuItem>
+            </Select>
+          </FormControl>
+          {user?.role !== 'expert' && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleCreateProject}
+              disabled={isCreating}
+              sx={{ bgcolor: COLORS.primary }}
+            >
+              Создать проект
+            </Button>
+          )}
+        </Box>
       </Box>
 
       {isLoading ? (
@@ -231,6 +250,14 @@ export const DashboardPage: React.FC = () => {
                 <CardActions>
                   <Button size="small" onClick={() => navigate(`/project/${project.id}`)}>
                     Открыть проект
+                  </Button>
+                  <Button
+                    size="small"
+                    color="error"
+                    startIcon={<DeleteIcon />}
+                    onClick={() => handleDeleteProject(project.id, project.name)}
+                  >
+                    Удалить
                   </Button>
                 </CardActions>
               </Card>

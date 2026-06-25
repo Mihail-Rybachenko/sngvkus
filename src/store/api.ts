@@ -30,7 +30,7 @@ export const api = createApi({
     }),
     register: builder.mutation<
       { user: User; token: string },
-      { email: string; password: string; role: string; name?: string }
+      { email: string; password: string; name?: string }
     >({
       query: (data) => ({
         url: '/auth/register',
@@ -60,6 +60,13 @@ export const api = createApi({
       }),
       invalidatesTags: ['Project'],
     }),
+    deleteProject: builder.mutation<{ ok: boolean }, string>({
+      query: (id) => ({
+        url: `/projects/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Project'],
+    }),
 
     // Analysis endpoints
     uploadAnalysis: builder.mutation<AnalysisData, FormData>({
@@ -84,6 +91,7 @@ export const {
   useGetProjectsQuery,
   useGetProjectQuery,
   useCreateProjectMutation,
+  useDeleteProjectMutation,
   useUploadAnalysisMutation,
   useGetAnalysisQuery,
 } = api;

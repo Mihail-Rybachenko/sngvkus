@@ -30,7 +30,7 @@ export const demoProjects: Project[] = [
   {
     id: 'project-1',
     name: 'Проект "Здоровые чипсы"',
-    status: 'analysis',
+    status: 'recipe_expert_review',
     student: demoUser,
     comments: [],
     notifications: [],

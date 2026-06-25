@@ -80,3 +80,5 @@ mysql -u root -p < database/sngvkus_schema.sql
 
 См. файл `examples.sql` для примеров запросов.
 
+
+

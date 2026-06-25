@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -16,6 +16,9 @@ import {
   Avatar,
   Menu,
   MenuItem,
+  Badge,
+  ListItemSecondaryAction,
+  Chip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -24,12 +27,15 @@ import {
   Restaurant as RestaurantIcon,
   DesignServices as DesignIcon,
   Slideshow as SlideshowIcon,
+  Notifications as NotificationsIcon,
   Logout as LogoutIcon,
   AccountCircle as AccountCircleIcon,
 } from '@mui/icons-material';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logout } from '@/store/slices/authSlice';
-import { COLORS } from '@/utils/constants';
+import { COLORS, DEMO_MODE } from '@/utils/constants';
+import api from '@/services/api';
+import type { Notification } from '@/types';
 
 const drawerWidth = 240;
 
@@ -44,10 +50,39 @@ const menuItems = [
 export const AppLayout: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
+
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications]
+  );
+
+  useEffect(() => {
+    if (DEMO_MODE) return;
+    if (!user) return;
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const resp = await api.get<Notification[]>('/notifications');
+        if (!cancelled) setNotifications(resp.data);
+      } catch {
+        // ignore
+      }
+    };
+
+    load();
+    const id = window.setInterval(load, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [user]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -61,15 +96,35 @@ export const AppLayout: React.FC = () => {
     setAnchorEl(null);
   };
 
+  const handleNotifOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setNotifAnchorEl(event.currentTarget);
+  };
+
+  const handleNotifClose = () => {
+    setNotifAnchorEl(null);
+  };
+
+  const markNotificationRead = async (id: string) => {
+    try {
+      const resp = await api.post<Notification>(`/notifications/${id}/read`);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === resp.data.id ? resp.data : n))
+      );
+    } catch {
+      // ignore
+    }
+  };
+
   const handleLogout = () => {
     dispatch(logout());
     navigate('/login');
     handleMenuClose();
+    handleNotifClose();
   };
 
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {
-      student: 'Студент',
+      student: 'Пользователь',
       expert: 'Эксперт',
       coordinator: 'Координатор',
     };
@@ -129,6 +184,13 @@ export const AppLayout: React.FC = () => {
             {menuItems.find((item) => item.path === location.pathname)?.text || 'SngVkus'}
           </Typography>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {!DEMO_MODE && (
+              <IconButton color="inherit" onClick={handleNotifOpen}>
+                <Badge badgeContent={unreadCount} color="error">
+                  <NotificationsIcon />
+                </Badge>
+              </IconButton>
+            )}
             <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
               {user?.name || user?.email} ({getRoleLabel(user?.role || '')})
             </Typography>
@@ -142,7 +204,12 @@ export const AppLayout: React.FC = () => {
               open={Boolean(anchorEl)}
               onClose={handleMenuClose}
             >
-              <MenuItem onClick={handleMenuClose}>
+              <MenuItem
+                onClick={() => {
+                  handleMenuClose();
+                  navigate('/profile');
+                }}
+              >
                 <AccountCircleIcon sx={{ mr: 1 }} />
                 Профиль
               </MenuItem>
@@ -150,6 +217,57 @@ export const AppLayout: React.FC = () => {
                 <LogoutIcon sx={{ mr: 1 }} />
                 Выйти
               </MenuItem>
+            </Menu>
+
+            <Menu
+              anchorEl={notifAnchorEl}
+              open={Boolean(notifAnchorEl)}
+              onClose={handleNotifClose}
+              PaperProps={{ sx: { width: 420, maxWidth: '90vw' } }}
+            >
+              <Box sx={{ px: 2, pt: 1, pb: 0.5 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  Уведомления
+                </Typography>
+              </Box>
+              <Divider />
+              {notifications.length === 0 ? (
+                <MenuItem disabled>
+                  <Typography variant="body2" color="text.secondary">
+                    Нет уведомлений
+                  </Typography>
+                </MenuItem>
+              ) : (
+                notifications.slice(0, 10).map((n) => (
+                  <MenuItem
+                    key={n.id}
+                    onClick={() => {
+                      if (!n.read) markNotificationRead(n.id);
+                      handleNotifClose();
+                      navigate(`/project/${n.projectId}`);
+                    }}
+                    sx={{ alignItems: 'flex-start', whiteSpace: 'normal' }}
+                  >
+                    <Box sx={{ pr: 3 }}>
+                      <Typography variant="body2" sx={{ fontWeight: n.read ? 400 : 700 }}>
+                        {n.message}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(n.createdAt).toLocaleString()}
+                      </Typography>
+                    </Box>
+                    <ListItemSecondaryAction>
+                      {!n.read && (
+                        <Chip
+                          label="Новое"
+                          size="small"
+                          sx={{ bgcolor: COLORS.accent, color: 'white' }}
+                        />
+                      )}
+                    </ListItemSecondaryAction>
+                  </MenuItem>
+                ))
+              )}
             </Menu>
           </Box>
         </Toolbar>
